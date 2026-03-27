@@ -13,6 +13,9 @@ from .markdown_sections import (
     sources_urls,
     suggest_url_category,
     audit_links,
+    add_heading_anchors,
+    strip_front_matter,
+    add_front_matter,
 )
 
 __all__ = [
@@ -28,4 +31,7 @@ __all__ = [
     "sources_urls",
     "suggest_url_category",
     "audit_links",
+    "add_heading_anchors",
+    "strip_front_matter",
+    "add_front_matter",
 ]

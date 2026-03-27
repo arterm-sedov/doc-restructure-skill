@@ -31,9 +31,9 @@ def _heading_re(level: int) -> re.Pattern[str]:
 class HeadingOccurrence:
     """Represents a heading occurrence in markdown."""
     level: int
-    title: str  # normalized
-    start_line: int  # 0-based inclusive
-    end_line: int  # 0-based exclusive
+    title: str
+    start_line: int
+    end_line: int
 
 
 def iter_headings(markdown: str, *, levels: Iterable[int] = (1, 2, 3, 4, 5, 6)) -> Iterable[HeadingOccurrence]:
@@ -75,14 +75,7 @@ def extract_section_by_heading(
     heading_title: str,
     heading_level: int = 2,
 ) -> tuple[str, int, int]:
-    """Extract a verbatim section starting at the first matching heading.
-
-    The extracted range includes the matched heading line and all lines until (but not including)
-    the next heading of the same `heading_level`, outside fenced code blocks.
-
-    Returns:
-        (section_text, start_line, end_line_exclusive)
-    """
+    """Extract a verbatim section starting at the first matching heading."""
     wanted = normalize_heading(heading_title)
     lines = markdown.splitlines(keepends=True)
     fenced = False
@@ -95,7 +88,6 @@ def extract_section_by_heading(
         kind = _fence_kind(line)
         if kind is not None:
             if not fenced:
-                # Entering fenced block - stop extraction here
                 fenced = True
                 fence_marker = kind
                 if start_idx is not None:
@@ -136,53 +128,25 @@ def extract_section_by_heading(
 
 
 def coverage_check(markdown: str, mapped_headings: set[str]) -> dict[str, list[str]]:
-    """Verify that all headings in the document are accounted for in a mapping.
-
-    Returns:
-        Dictionary with:
-        - "covered": List of headings found in both document and mapping
-        - "missing": List of headings in document but not in mapping
-        - "extra": List of headings in mapping but not in document
-    """
+    """Verify that all headings in the document are accounted for."""
     document_headings = {h.title for h in iter_headings(markdown, levels=(1, 2, 3, 4, 5, 6))}
 
-    covered = sorted(document_headings & mapped_headings)
-    missing = sorted(document_headings - mapped_headings)
-    extra = sorted(mapped_headings - document_headings)
-
     return {
-        "covered": covered,
-        "missing": missing,
-        "extra": extra,
+        "covered": sorted(document_headings & mapped_headings),
+        "missing": sorted(document_headings - mapped_headings),
+        "extra": sorted(mapped_headings - document_headings),
     }
 
+
 def make_safe_slug(heading_title: str, max_length: int = 80) -> str:
-    """Create a safe filename slug from a heading title.
-    
-    Args:
-        heading_title: The heading title to convert
-        max_length: Maximum length of the slug (default 80)
-    
-    Returns:
-        A safe filename-compatible slug
-    """
+    """Create a safe filename slug from a heading title."""
     slug = normalize_heading(heading_title)
     slug = "".join(ch if ch.isalnum() else "_" for ch in slug)[:max_length].strip("_")
     return slug
 
 
 def extract_all_h2_section_ranges(markdown: str) -> list[tuple[str, int, int]]:
-    """Extract all H2 section ranges from markdown.
-    
-    Returns list of (heading_title_normalized, start_line_idx, end_line_exclusive)
-    sorted by start position.
-    
-    Args:
-        markdown: The markdown content
-    
-    Returns:
-        List of tuples (title, start_line, end_line) for each H2 section
-    """
+    """Extract all H2 section ranges from markdown."""
     lines = markdown.splitlines(keepends=True)
     occurrences = list(iter_headings(markdown, levels=(2,)))
     occurrences_sorted = sorted(occurrences, key=lambda x: x.start_line)
@@ -196,28 +160,12 @@ def extract_all_h2_section_ranges(markdown: str) -> list[tuple[str, int, int]]:
 
 
 def normalize_url(url: str) -> str:
-    """Normalize URL by stripping trailing punctuation.
-    
-    Args:
-        url: The URL to normalize
-    
-    Returns:
-        URL with trailing ),.,;,",' removed
-    """
+    """Normalize URL by stripping trailing punctuation."""
     return url.rstrip(").,;\"'")
 
 
 def body_urls(text: str) -> dict[str, str]:
-    """Extract all URLs from markdown body text.
-    
-    Finds both markdown links [label](url) and bare URLs.
-    
-    Args:
-        text: The markdown text to extract URLs from
-    
-    Returns:
-        Dictionary mapping URL -> preferred label from first occurrence
-    """
+    """Extract all URLs from markdown body text."""
     out: dict[str, str] = {}
     for m in re.finditer(r"\[([^\]]*)\]\((https?://[^)\s]+)\)", text):
         u = normalize_url(m.group(2))
@@ -234,14 +182,7 @@ def body_urls(text: str) -> dict[str, str]:
 
 
 def sources_urls(sources_block: str) -> set[str]:
-    """Extract all URLs from a Sources section.
-    
-    Args:
-        sources_block: The sources section text
-    
-    Returns:
-        Set of normalized URLs found
-    """
+    """Extract all URLs from a Sources section."""
     found: set[str] = set()
     for m in re.finditer(r"- \[([^\]]*)\]\((https?://[^)\s]+)\)", sources_block):
         found.add(normalize_url(m.group(2)))
@@ -251,16 +192,7 @@ def sources_urls(sources_block: str) -> set[str]:
 
 
 def suggest_url_category(url: str) -> str:
-    """Suggest category heading based on URL domain patterns.
-    
-    Useful for organizing URLs into sections.
-    
-    Args:
-        url: The URL to categorize
-    
-    Returns:
-        Suggested category string
-    """
+    """Suggest category heading based on URL domain patterns."""
     u = url.lower()
     if "genai.owasp.org" in u or "owasp.org" in u or "github.com/owasp" in u:
         return "OWASP / security standards"
@@ -282,18 +214,7 @@ def suggest_url_category(url: str) -> str:
 
 
 def audit_links(body: str, sources_block: str) -> dict[str, list[str]]:
-    """Audit links between body and sources sections.
-    
-    Args:
-        body: The document body text (before sources)
-        sources_block: The sources section text
-    
-    Returns:
-        Dictionary with:
-        - "covered": URLs present in both body and sources
-        - "missing": URLs in body but not in sources
-        - "extra": URLs in sources but not in body
-    """
+    """Audit links between body and sources sections."""
     bu = body_urls(body)
     su = sources_urls(sources_block)
     
@@ -304,110 +225,71 @@ def audit_links(body: str, sources_block: str) -> dict[str, list[str]]:
     }
 
 
-def normalize_url(url: str) -> str:
-    """Normalize URL by stripping trailing punctuation.
+def add_heading_anchors(text: str, prefix: str = "") -> str:
+    """Add markdown anchor links to all headings.
     
     Args:
-        url: The URL to normalize
+        text: The markdown text
+        prefix: Optional prefix for anchor IDs (e.g., "ch1" -> "ch1_intro")
     
     Returns:
-        URL with trailing ),.,;,",' removed
+        Text with anchors added to headings
+    
+    Example:
+        ## My Section -> ## My Section {: #my-section }
     """
-    return url.rstrip(").,;\"'")
+    used: set[str] = set()
+    out: list[str] = []
+    for line in text.split("\n"):
+        m = re.match(r"^(#{1,6})\s+(.+?)\s*$", line)
+        if not m or "{: #" in line:
+            out.append(line)
+            continue
+        level, raw = m.group(1), m.group(2)
+        base = re.sub(r"[^a-zA-Z0-9]+", "-", raw.lower()).strip("-")
+        if not base:
+            base = "section"
+        if prefix and level == "#":
+            hid = prefix
+        elif prefix:
+            hid = f"{prefix}_{base}"
+        else:
+            hid = base
+        n = 2
+        while hid in used:
+            if prefix:
+                hid = f"{prefix}_{base}_{n}"
+            else:
+                hid = f"{base}_{n}"
+            n += 1
+        used.add(hid)
+        out.append(f"{level} {raw} {{: #{hid} }}")
+    return "\n".join(out)
 
 
-def body_urls(text: str) -> dict[str, str]:
-    """Extract all URLs from markdown body text.
-    
-    Finds both markdown links [label](url) and bare URLs.
-    
-    Args:
-        text: The markdown text to extract URLs from
+def strip_front_matter(text: str) -> tuple[str, str]:
+    """Strip YAML front matter from markdown.
     
     Returns:
-        Dictionary mapping URL -> preferred label from first occurrence
+        Tuple of (front_matter, body)
     """
-    out: dict[str, str] = {}
-    for m in re.finditer(r"\[([^\]]*)\]\((https?://[^)\s]+)\)", text):
-        u = normalize_url(m.group(2))
-        label = m.group(1).strip().replace("\n", " ")
-        if u not in out and label:
-            out[u] = label
-        elif u not in out:
-            out[u] = u
-    for m in re.finditer(r"(?<![(\[])(https?://[^\s\)\]>'\"]+)", text):
-        u = normalize_url(m.group(1))
-        if u not in out:
-            out[u] = u
-    return out
+    if text.startswith("---\n"):
+        parts = text.split("---", 2)
+        if len(parts) >= 3:
+            return parts[1], parts[2].lstrip("\n")
+    return "", text
 
 
-def sources_urls(sources_block: str) -> set[str]:
-    """Extract all URLs from a Sources section.
-    
-    Args:
-        sources_block: The sources section text
-    
-    Returns:
-        Set of normalized URLs found
-    """
-    found: set[str] = set()
-    for m in re.finditer(r"- \[([^\]]*)\]\((https?://[^)\s]+)\)", sources_block):
-        found.add(normalize_url(m.group(2)))
-    for m in re.finditer(r"(?<![(\[])(https?://[^\s\)\]>'\"]+)", sources_block):
-        found.add(normalize_url(m.group(1)))
-    return found
-
-
-def suggest_url_category(url: str) -> str:
-    """Suggest category heading based on URL domain patterns.
-    
-    Useful for organizing URLs into sections.
-    
-    Args:
-        url: The URL to categorize
-    
-    Returns:
-        Suggested category string
-    """
-    u = url.lower()
-    if "genai.owasp.org" in u or "owasp.org" in u or "github.com/owasp" in u:
-        return "OWASP / security standards"
-    if "kaspersky.com" in u or "securelist.com" in u:
-        return "Threats / Kaspersky"
-    if "huggingface.co" in u:
-        return "Hugging Face"
-    if "arxiv.org" in u or "research.nvidia.com" in u or "research.yandex.com" in u:
-        return "Research / preprints"
-    if "t.me/" in u:
-        return "Telegram"
-    if "github.com" in u:
-        return "GitHub / open projects"
-    if "habr.com" in u:
-        return "Habr"
-    if "cloud.ru" in u or "aistudio.yandex.ru" in u or "developers.sber.ru" in u:
-        return "Cloud RU / tariffs"
-    return "Review manually"
-
-
-def audit_links(body: str, sources_block: str) -> dict[str, list[str]]:
-    """Audit links between body and sources sections.
-    
-    Args:
-        body: The document body text (before sources)
-        sources_block: The sources section text
-    
-    Returns:
-        Dictionary with:
-        - "covered": URLs present in both body and sources
-        - "missing": URLs in body but not in sources
-        - "extra": URLs in sources but not in body
-    """
-    bu = body_urls(body)
-    su = sources_urls(sources_block)
-    
-    return {
-        "covered": sorted(set(bu) - (set(bu) - su)),
-        "missing": sorted(set(bu) - su),
-        "extra": sorted(su - set(bu)),
-    }
+def add_front_matter(body: str, title: str, date: str = "", status: str = "", tags: list[str] = None) -> str:
+    """Add YAML front matter to markdown body."""
+    lines = ["---", f"title: '{title}'"]
+    if date:
+        lines.append(f"date: {date}")
+    if status:
+        lines.append(f"status: '{status}'")
+    if tags:
+        lines.append("tags:")
+        for tag in sorted(tags):
+            lines.append(f"  - {tag}")
+    lines.append("---", "")
+    return "\n".join(lines) + body

@@ -139,6 +139,22 @@ Audit links between body and sources.
 
 **Returns:** Dict with `"covered"`, `"missing"`, `"extra"` URL lists
 
+### add_heading_anchors(text, prefix="")
+
+Add markdown anchor links to all headings.
+
+**Example:** `## My Section` → `## My Section {: #my-section }`
+
+### strip_front_matter(text)
+
+Strip YAML front matter from markdown.
+
+**Returns:** Tuple of `(front_matter, body)`
+
+### add_front_matter(body, title, date="", status="", tags=None)
+
+Add YAML front matter to markdown body.
+
 ## Usage Example
 
 ```python
