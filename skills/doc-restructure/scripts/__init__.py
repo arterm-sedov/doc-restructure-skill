@@ -8,6 +8,11 @@ from .markdown_sections import (
     coverage_check,
     make_safe_slug,
     extract_all_h2_section_ranges,
+    normalize_url,
+    body_urls,
+    sources_urls,
+    suggest_url_category,
+    audit_links,
 )
 
 __all__ = [
@@ -18,4 +23,9 @@ __all__ = [
     "coverage_check",
     "make_safe_slug",
     "extract_all_h2_section_ranges",
+    "normalize_url",
+    "body_urls",
+    "sources_urls",
+    "suggest_url_category",
+    "audit_links",
 ]

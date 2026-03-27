@@ -193,3 +193,221 @@ def extract_all_h2_section_ranges(markdown: str) -> list[tuple[str, int, int]]:
         end = occurrences_sorted[idx + 1].start_line if idx + 1 < len(occurrences_sorted) else len(lines)
         ranges.append((occ.title, start, end))
     return ranges
+
+
+def normalize_url(url: str) -> str:
+    """Normalize URL by stripping trailing punctuation.
+    
+    Args:
+        url: The URL to normalize
+    
+    Returns:
+        URL with trailing ),.,;,",' removed
+    """
+    return url.rstrip(").,;\"'")
+
+
+def body_urls(text: str) -> dict[str, str]:
+    """Extract all URLs from markdown body text.
+    
+    Finds both markdown links [label](url) and bare URLs.
+    
+    Args:
+        text: The markdown text to extract URLs from
+    
+    Returns:
+        Dictionary mapping URL -> preferred label from first occurrence
+    """
+    out: dict[str, str] = {}
+    for m in re.finditer(r"\[([^\]]*)\]\((https?://[^)\s]+)\)", text):
+        u = normalize_url(m.group(2))
+        label = m.group(1).strip().replace("\n", " ")
+        if u not in out and label:
+            out[u] = label
+        elif u not in out:
+            out[u] = u
+    for m in re.finditer(r"(?<![(\[])(https?://[^\s\)\]>'\"]+)", text):
+        u = normalize_url(m.group(1))
+        if u not in out:
+            out[u] = u
+    return out
+
+
+def sources_urls(sources_block: str) -> set[str]:
+    """Extract all URLs from a Sources section.
+    
+    Args:
+        sources_block: The sources section text
+    
+    Returns:
+        Set of normalized URLs found
+    """
+    found: set[str] = set()
+    for m in re.finditer(r"- \[([^\]]*)\]\((https?://[^)\s]+)\)", sources_block):
+        found.add(normalize_url(m.group(2)))
+    for m in re.finditer(r"(?<![(\[])(https?://[^\s\)\]>'\"]+)", sources_block):
+        found.add(normalize_url(m.group(1)))
+    return found
+
+
+def suggest_url_category(url: str) -> str:
+    """Suggest category heading based on URL domain patterns.
+    
+    Useful for organizing URLs into sections.
+    
+    Args:
+        url: The URL to categorize
+    
+    Returns:
+        Suggested category string
+    """
+    u = url.lower()
+    if "genai.owasp.org" in u or "owasp.org" in u or "github.com/owasp" in u:
+        return "OWASP / security standards"
+    if "kaspersky.com" in u or "securelist.com" in u:
+        return "Threats / Kaspersky"
+    if "huggingface.co" in u:
+        return "Hugging Face"
+    if "arxiv.org" in u or "research.nvidia.com" in u or "research.yandex.com" in u:
+        return "Research / preprints"
+    if "t.me/" in u:
+        return "Telegram"
+    if "github.com" in u:
+        return "GitHub / open projects"
+    if "habr.com" in u:
+        return "Habr"
+    if "cloud.ru" in u or "aistudio.yandex.ru" in u or "developers.sber.ru" in u:
+        return "Cloud RU / tariffs"
+    return "Review manually"
+
+
+def audit_links(body: str, sources_block: str) -> dict[str, list[str]]:
+    """Audit links between body and sources sections.
+    
+    Args:
+        body: The document body text (before sources)
+        sources_block: The sources section text
+    
+    Returns:
+        Dictionary with:
+        - "covered": URLs present in both body and sources
+        - "missing": URLs in body but not in sources
+        - "extra": URLs in sources but not in body
+    """
+    bu = body_urls(body)
+    su = sources_urls(sources_block)
+    
+    return {
+        "covered": sorted(set(bu) - (set(bu) - su)),
+        "missing": sorted(set(bu) - su),
+        "extra": sorted(su - set(bu)),
+    }
+
+
+def normalize_url(url: str) -> str:
+    """Normalize URL by stripping trailing punctuation.
+    
+    Args:
+        url: The URL to normalize
+    
+    Returns:
+        URL with trailing ),.,;,",' removed
+    """
+    return url.rstrip(").,;\"'")
+
+
+def body_urls(text: str) -> dict[str, str]:
+    """Extract all URLs from markdown body text.
+    
+    Finds both markdown links [label](url) and bare URLs.
+    
+    Args:
+        text: The markdown text to extract URLs from
+    
+    Returns:
+        Dictionary mapping URL -> preferred label from first occurrence
+    """
+    out: dict[str, str] = {}
+    for m in re.finditer(r"\[([^\]]*)\]\((https?://[^)\s]+)\)", text):
+        u = normalize_url(m.group(2))
+        label = m.group(1).strip().replace("\n", " ")
+        if u not in out and label:
+            out[u] = label
+        elif u not in out:
+            out[u] = u
+    for m in re.finditer(r"(?<![(\[])(https?://[^\s\)\]>'\"]+)", text):
+        u = normalize_url(m.group(1))
+        if u not in out:
+            out[u] = u
+    return out
+
+
+def sources_urls(sources_block: str) -> set[str]:
+    """Extract all URLs from a Sources section.
+    
+    Args:
+        sources_block: The sources section text
+    
+    Returns:
+        Set of normalized URLs found
+    """
+    found: set[str] = set()
+    for m in re.finditer(r"- \[([^\]]*)\]\((https?://[^)\s]+)\)", sources_block):
+        found.add(normalize_url(m.group(2)))
+    for m in re.finditer(r"(?<![(\[])(https?://[^\s\)\]>'\"]+)", sources_block):
+        found.add(normalize_url(m.group(1)))
+    return found
+
+
+def suggest_url_category(url: str) -> str:
+    """Suggest category heading based on URL domain patterns.
+    
+    Useful for organizing URLs into sections.
+    
+    Args:
+        url: The URL to categorize
+    
+    Returns:
+        Suggested category string
+    """
+    u = url.lower()
+    if "genai.owasp.org" in u or "owasp.org" in u or "github.com/owasp" in u:
+        return "OWASP / security standards"
+    if "kaspersky.com" in u or "securelist.com" in u:
+        return "Threats / Kaspersky"
+    if "huggingface.co" in u:
+        return "Hugging Face"
+    if "arxiv.org" in u or "research.nvidia.com" in u or "research.yandex.com" in u:
+        return "Research / preprints"
+    if "t.me/" in u:
+        return "Telegram"
+    if "github.com" in u:
+        return "GitHub / open projects"
+    if "habr.com" in u:
+        return "Habr"
+    if "cloud.ru" in u or "aistudio.yandex.ru" in u or "developers.sber.ru" in u:
+        return "Cloud RU / tariffs"
+    return "Review manually"
+
+
+def audit_links(body: str, sources_block: str) -> dict[str, list[str]]:
+    """Audit links between body and sources sections.
+    
+    Args:
+        body: The document body text (before sources)
+        sources_block: The sources section text
+    
+    Returns:
+        Dictionary with:
+        - "covered": URLs present in both body and sources
+        - "missing": URLs in body but not in sources
+        - "extra": URLs in sources but not in body
+    """
+    bu = body_urls(body)
+    su = sources_urls(sources_block)
+    
+    return {
+        "covered": sorted(set(bu) - (set(bu) - su)),
+        "missing": sorted(set(bu) - su),
+        "extra": sorted(su - set(bu)),
+    }
