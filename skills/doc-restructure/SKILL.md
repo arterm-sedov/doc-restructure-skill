@@ -65,7 +65,6 @@ For complex bulk operations, use the right tool:
 
 Example - bulk fix broken links:
 ```bash
-# Find all markdown files with broken reference
 grep -r "old-section-name" --include="*.md" -l
 ```
 
@@ -78,6 +77,36 @@ for md in Path("docs").glob("**/*.md"):
     urls = body_urls(md.read_text())
     print(f"{md}: {len(urls)} URLs")
 ```
+
+## Common Harness Patterns
+
+### Number Format Transformation (e.g., US → RU)
+
+When localizing Russian docs, transform US number formats:
+- `1,415.2` → `1 415,2` (thousands: comma→space, decimal: dot→comma)
+- `300,000,000` → `300 000 000`
+- `3.97-10.68` → `3,97–10,68` (ranges with en dash)
+
+**Key challenge**: Distinguish "real numbers" from "version strings":
+- Keep: `GLM-4.6`, `GPT-5.4`, `HuggingFace path`, `0.6B` (model names)
+- Transform: prices, measurements, ranges in tables
+
+**Harness approach**:
+```python
+# 1) Define safe patterns to EXCLUDE (versions, paths, dates)
+VERSION_LIKE = re.compile(r'(?:GLM|GPT|YandexGPT|Claude)[-.\s]\d|^\d+[A-Z]|huggingface\.co|\d{2}\.\d{2}\.\d{4}')
+
+# 2) Transform only safe contexts (table cells, currency, measurements)
+# 3) Run and verify no regressions (check model names still work)
+# 4) Manual review pass for edge cases
+```
+
+### URL/Link Verification
+
+1. Extract all URLs from body + sources
+2. Find missing (in body, not in sources) or orphaned
+3. Group by domain for categorization
+4. Generate fix report
 
 ## Core Primitives
 
