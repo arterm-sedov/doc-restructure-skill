@@ -155,6 +155,28 @@ Strip YAML front matter from markdown.
 
 Add YAML front matter to markdown body.
 
+### extract_ial_headings(markdown)
+
+Extract headings with IAL (Kramdown) syntax: `## Title {: #anchor-id }`
+
+**Returns:** List of dicts with `level`, `title`, `anchor_id`, `line_number`
+
+### apply_anchor_map(markdown, old_to_new)
+
+Apply anchor ID remapping to markdown.
+
+**Example:** `{: #old_id }` → `{: #new_id }`
+
+### find_orphaned_refs(markdown, defined_anchors)
+
+Find broken cross-references (links to non-existent anchors).
+
+**Returns:** List of dicts with `fragment`, `line_number`, `context`
+
+### make_slug(title, max_length=48)
+
+Create URL-safe slug from heading title (ASCII-only).
+
 ## Usage Example
 
 ```python

@@ -16,6 +16,10 @@ from .markdown_sections import (
     add_heading_anchors,
     strip_front_matter,
     add_front_matter,
+    extract_ial_headings,
+    apply_anchor_map,
+    find_orphaned_refs,
+    make_slug,
 )
 
 __all__ = [
@@ -34,4 +38,8 @@ __all__ = [
     "add_heading_anchors",
     "strip_front_matter",
     "add_front_matter",
+    "extract_ial_headings",
+    "apply_anchor_map",
+    "find_orphaned_refs",
+    "make_slug",
 ]

@@ -293,3 +293,135 @@ def add_front_matter(body: str, title: str, date: str = "", status: str = "", ta
             lines.append(f"  - {tag}")
     lines.append("---", "")
     return "\n".join(lines) + body
+
+
+# IAL/Kramdown heading anchor patterns (from remap_20260325_anchors.py)
+HEADING_IAL_RE = re.compile(
+    r"^(#{1,6})\s+(.+?)\s+\{:\s*#([a-z0-9_]+)(?:\s+[^}]*)?\}\s*$"
+)
+
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+
+
+def extract_ial_headings(markdown: str) -> list[dict]:
+    """Extract headings with IAL (implicit anchor link) syntax.
+    
+    Finds headings like: ## Title {: #anchor-id }
+    
+    Args:
+        markdown: The markdown text
+    
+    Returns:
+        List of dicts with: level, title, anchor_id, line_number
+    """
+    results = []
+    lines = markdown.splitlines()
+    in_fence = False
+    
+    for i, line in enumerate(lines, start=1):
+        if line.strip().startswith("```") or line.strip().startswith("~~~"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+            
+        m = HEADING_IAL_RE.match(line.rstrip())
+        if m:
+            results.append({
+                "level": len(m.group(1)),
+                "title": m.group(2).strip(),
+                "anchor_id": m.group(3),
+                "line_number": i,
+            })
+    return results
+
+
+def apply_anchor_map(markdown: str, old_to_new: dict[str, str]) -> str:
+    """Apply anchor ID remapping to markdown.
+    
+    Args:
+        markdown: The markdown text
+        old_to_new: Dict mapping old anchor IDs to new ones
+    
+    Returns:
+        Text with anchor IDs remapped
+    """
+    # Sort by length descending to avoid partial replacements
+    keys_desc = sorted(old_to_new.items(), key=lambda kv: len(kv[0]), reverse=True)
+    
+    for old_id, new_id in keys_desc:
+        # Handle different IAL syntax variations
+        patterns = [
+            f"{{: #{old_id} }}",
+            f"{{: #{old_id}}}",
+            f"(#{old_id})",
+            f"(#{old_id} ",
+            f"#{old_id})",
+            f"#{old_id}]",
+        ]
+        for p in patterns:
+            markdown = markdown.replace(p, p.replace(old_id, new_id))
+    
+    return markdown
+
+
+def find_orphaned_refs(markdown: str, defined_anchors: set[str]) -> list[dict]:
+    """Find broken cross-references (anchors that don't exist).
+    
+    Args:
+        markdown: The markdown text
+        defined_anchors: Set of valid anchor IDs defined in the document
+    
+    Returns:
+        List of dicts with: fragment, line_number, context
+    """
+    orphans = []
+    lines = markdown.splitlines()
+    
+    # Match links like [text](#anchor-id) or just (#anchor-id)
+    frag_ref = re.compile(r"\]\(([^)#]+)#([a-z0-9_]+)\)")
+    self_ref = re.compile(r"\]\(#([a-z0-9_]+)\)")
+    
+    for i, line in enumerate(lines, start=1):
+        # Cross-file references: [text](file.md#anchor)
+        for m in frag_ref.finditer(line):
+            frag = m.group(1).split("/")[-1]  # get filename
+            anchor = m.group(2)
+            if frag.endswith(".md") and anchor not in defined_anchors:
+                orphans.append({
+                    "fragment": f"{frag}#{anchor}",
+                    "line_number": i,
+                    "context": line.strip()[:80],
+                })
+        
+        # Self-references: [text](#anchor) within same file
+        for m in self_ref.finditer(line):
+            anchor = m.group(1)
+            if anchor not in defined_anchors:
+                orphans.append({
+                    "fragment": f"#{anchor}",
+                    "line_number": i,
+                    "context": line.strip()[:80],
+                })
+    
+    return orphans
+
+
+def make_slug(title: str, max_length: int = 48) -> str:
+    """Create URL-safe slug from heading title.
+    
+    Args:
+        title: The heading title
+        max_length: Maximum slug length
+    
+    Returns:
+        Slug string (lowercase, hyphens)
+    """
+    # Remove existing IAL if present
+    text = re.sub(r"\{:[^}]+\}", "", title)
+    # Convert to ASCII-friendly (strips Cyrillic)
+    text = re.sub(r"[^a-zA-Z0-9\s]+", "", text)
+    text = re.sub(r"[^a-zA-Z0-9]+", "-", text.lower())
+    text = text.strip("-")
+    text = re.sub(r"-+", "-", text)
+    return text[:max_length].rstrip("-") or "section"
