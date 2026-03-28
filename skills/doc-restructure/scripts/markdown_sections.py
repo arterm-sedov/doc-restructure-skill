@@ -635,7 +635,9 @@ def parse_section_buckets(markdown: str, heading_level: int = 4) -> dict:
     level_char = "#" * heading_level
     heading_re = re.compile(rf"^{level_char} (.+?) \{{: #([^}}]+) }}\s*$")
     link_re = re.compile(r"^- \[([^\]]*)\]\((https?://[^)]+)\)\s*(.*)$")
-    heading_reset = re.compile(r"^#{1,3} ")
+    # Reset on headings LOWER than target level (e.g., H1-H3 resets when parsing H4)
+    lower_levels = "".join("#" for _ in range(1, heading_level))
+    heading_reset = re.compile(rf"^[{lower_levels}][^{level_char}]")
     
     lines = markdown.splitlines()
     buckets = {}
