@@ -622,7 +622,7 @@ def extract_http_urls(text: str) -> set[str]:
     return {normalize_url(m) for m in re.findall(r"https?://[^\s)>\]]+", text)}
 
 
-def parse_section_buckets(markdown: str, heading_level: int = 4) -> dict:
+def parse_section_buckets(markdown: str, heading_level: int = 2) -> dict:
     """Parse sections at given level into ordered buckets.
     
     Args:

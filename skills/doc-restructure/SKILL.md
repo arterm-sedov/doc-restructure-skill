@@ -211,7 +211,7 @@ Extract all HTTP/HTTPS URLs from text.
 
 **Returns:** Set of normalized URLs
 
-### parse_section_buckets(markdown, heading_level=4)
+### parse_section_buckets(markdown, heading_level=2)
 
 Parse sections at given level into ordered buckets with URLs.
 
