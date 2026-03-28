@@ -608,3 +608,132 @@ def build_combined_document(
         parts.append(body)
     
     return "\n".join(parts)
+
+
+def extract_http_urls(text: str) -> set[str]:
+    """Extract all HTTP/HTTPS URLs from text.
+    
+    Args:
+        text: The text to extract URLs from
+    
+    Returns:
+        Set of normalized URLs
+    """
+    return {normalize_url(m) for m in re.findall(r"https?://[^\s)>\]]+", text)}
+
+
+def parse_section_buckets(markdown: str, heading_level: int = 4) -> dict:
+    """Parse sections at given level into ordered buckets.
+    
+    Args:
+        markdown: The markdown text
+        heading_level: The heading level to parse (default: 4 for H4)
+    
+    Returns:
+        Ordered dict: section_title -> {anchor, urls: {url: line}}
+    """
+    level_char = "#" * heading_level
+    heading_re = re.compile(rf"^{level_char} (.+?) \{{: #([^}}]+) }}\s*$")
+    link_re = re.compile(r"^- \[([^\]]*)\]\((https?://[^)]+)\)\s*(.*)$")
+    heading_reset = re.compile(r"^#{1,3} ")
+    
+    lines = markdown.splitlines()
+    buckets = {}
+    order = []
+    current = None
+    
+    for line in lines:
+        if heading_reset.match(line):
+            current = None
+            continue
+        
+        m = heading_re.match(line)
+        if m:
+            title = m.group(1).strip()
+            anchor = m.group(2).strip()
+            if title not in buckets:
+                buckets[title] = {"anchor": anchor, "urls": {}}
+                order.append(title)
+            current = title
+            continue
+        
+        if current is None:
+            continue
+        
+        lm = link_re.match(line)
+        if lm:
+            label, url = lm.group(1), lm.group(2)
+            nu = normalize_url(url)
+            full_line = line.rstrip()
+            existing = buckets[current]["urls"].get(nu)
+            if existing is None or len(label) > len(existing.get("label", "")):
+                buckets[current]["urls"][nu] = {"label": label, "line": full_line}
+    
+    # Return in order
+    return {k: buckets[k] for k in order if k in buckets}
+
+
+def deduplicate_urls_across_sections(
+    buckets: dict,
+    section_order: list[str] = None,
+) -> dict:
+    """Deduplicate URLs - each URL appears in exactly one section.
+    
+    Args:
+        buckets: Dict from parse_section_buckets()
+        section_order: Preferred order (earlier = higher priority)
+    
+    Returns:
+        Cleaned buckets with deduplicated URLs
+    """
+    if section_order is None:
+        section_order = list(buckets.keys())
+    
+    unknown = [t for t in buckets if t not in section_order]
+    
+    def priority(title: str) -> tuple[int, int]:
+        if title in section_order:
+            return (0, section_order.index(title))
+        return (1, unknown.index(title))
+    
+    assignment = {}
+    for title, data in buckets.items():
+        for url, info in data["urls"].items():
+            pri = priority(title)
+            cur = assignment.get(url)
+            if cur is None or pri < cur[0]:
+                assignment[url] = (pri, title, info["line"])
+            elif pri == cur[0] and len(info["label"]) > len(cur[2].get("label", "")):
+                assignment[url] = (pri, title, info["line"])
+    
+    fresh = {}
+    for t in buckets:
+        fresh[t] = {"anchor": buckets[t]["anchor"], "urls": {}}
+    
+    for url, (_pri, title, line) in assignment.items():
+        fresh[title]["urls"][url] = {"label": "", "line": line}
+    
+    return {t: d for t, d in fresh.items() if d["urls"]}
+
+
+def find_duplicate_urls_in_section(markdown: str, section_start: str) -> list[str]:
+    """Find URLs that appear more than once in a section.
+    
+    Args:
+        markdown: The markdown text
+        section_start: Heading that marks start of section to check
+    
+    Returns:
+        List of duplicate URLs (sorted)
+    """
+    if section_start in markdown:
+        section = markdown.split(section_start, 1)[1]
+    else:
+        section = markdown
+    
+    urls = extract_http_urls(section)
+    counts = {}
+    for u in urls:
+        counts[u] = counts.get(u, 0) + 1
+    
+    return sorted(u for u, c in counts.items() if c > 1)

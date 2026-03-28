@@ -25,6 +25,10 @@ from .markdown_sections import (
     extract_first_h1,
     slugify_anchor,
     build_combined_document,
+    extract_http_urls,
+    parse_section_buckets,
+    deduplicate_urls_across_sections,
+    find_duplicate_urls_in_section,
 )
 
 __all__ = [
@@ -52,4 +56,8 @@ __all__ = [
     "extract_first_h1",
     "slugify_anchor",
     "build_combined_document",
+    "extract_http_urls",
+    "parse_section_buckets",
+    "deduplicate_urls_across_sections",
+    "find_duplicate_urls_in_section",
 ]

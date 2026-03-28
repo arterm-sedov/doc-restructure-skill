@@ -205,6 +205,30 @@ Combine multiple markdown files into one document.
 
 Each file becomes an H2 section, headings inside are demoted by one level.
 
+### extract_http_urls(text)
+
+Extract all HTTP/HTTPS URLs from text.
+
+**Returns:** Set of normalized URLs
+
+### parse_section_buckets(markdown, heading_level=4)
+
+Parse sections at given level into ordered buckets with URLs.
+
+**Returns:** Dict: section_title -> {anchor, urls: {url: info}}
+
+### deduplicate_urls_across_sections(buckets, section_order=None)
+
+Deduplicate URLs - each URL appears in exactly one section.
+
+Useful for merging source lists.
+
+### find_duplicate_urls_in_section(markdown, section_start)
+
+Find URLs appearing more than once in a section.
+
+**Returns:** List of duplicate URLs
+
 ## Usage Example
 
 ```python
