@@ -1,7 +1,9 @@
 """Markdown sections module for document restructuring."""
 
 import re
+import os
 from collections.abc import Iterable
+from pathlib import Path
 from dataclasses import dataclass
 
 
@@ -425,3 +427,184 @@ def make_slug(title: str, max_length: int = 48) -> str:
     text = text.strip("-")
     text = re.sub(r"-+", "-", text)
     return text[:max_length].rstrip("-") or "section"
+
+
+def demote_headings(markdown: str, levels: int = 1) -> str:
+    """Demote headings by one (or more) level outside fenced code blocks.
+    
+    Args:
+        markdown: The markdown text
+        levels: How many levels to demote (default: 1)
+    
+    Returns:
+        Text with headings demoted
+    
+    Example:
+        ## H2 becomes ### H3 with levels=1
+    """
+    lines = markdown.splitlines()
+    in_fence = False
+    fence_pattern = re.compile(r"^\s*(```|~~~)")
+    out = []
+    
+    for line in lines:
+        if fence_pattern.match(line):
+            in_fence = not in_fence
+            out.append(line)
+            continue
+        if in_fence:
+            out.append(line)
+            continue
+        
+        # Demote heading
+        if line.startswith("#"):
+            m = re.match(r"^(#+)(\s*)(.*)$", line)
+            if m:
+                hashes, space, rest = m.groups()
+                new_hashes = hashes + ("#" * levels)
+                out.append(new_hashes + space + rest)
+            else:
+                out.append(line)
+        else:
+            out.append(line)
+    
+    return "\n".join(out)
+
+
+def promote_headings(markdown: str, levels: int = 1) -> str:
+    """Promote headings by one (or more) level outside fenced code blocks.
+    
+    Args:
+        markdown: The markdown text
+        levels: How many levels to promote (default: 1)
+    
+    Returns:
+        Text with headings promoted
+    """
+    lines = markdown.splitlines()
+    in_fence = False
+    fence_pattern = re.compile(r"^\s*(```|~~~)")
+    out = []
+    
+    for line in lines:
+        if fence_pattern.match(line):
+            in_fence = not in_fence
+            out.append(line)
+            continue
+        if in_fence:
+            out.append(line)
+            continue
+        
+        # Promote heading
+        if line.startswith("#"):
+            m = re.match(r"^(#+)(\s*)(.*)$", line)
+            if m:
+                hashes, space, rest = m.groups()
+                new_len = max(1, len(hashes) - levels)
+                new_hashes = "#" * new_len
+                out.append(new_hashes + space + rest)
+            else:
+                out.append(line)
+        else:
+            out.append(line)
+    
+    return "\n".join(out)
+
+
+def extract_first_h1(markdown: str) -> str | None:
+    """Extract the first H1 heading from markdown.
+    
+    Args:
+        markdown: The markdown text
+    
+    Returns:
+        The H1 title without the # prefix, or None if no H1 found
+    """
+    for line in markdown.splitlines():
+        if line.startswith("# "):
+            return line[2:].strip()
+    return None
+
+
+def slugify_anchor(text: str) -> str:
+    """Create anchor-friendly slug (keeps Cyrillic).
+    
+    Args:
+        text: The heading text
+    
+    Returns:
+        Slug string for anchors
+    """
+    text = text.strip().lower()
+    text = re.sub(r"\s+", "-", text)
+    text = re.sub(r"[^\w\-]", "", text)
+    return text
+
+
+def build_combined_document(
+    file_paths: list[str],
+    title: str,
+    add_toc: bool = False,
+) -> str:
+    """Combine multiple markdown files into one document.
+    
+    Each file becomes a section (H2). Headings inside are demoted by one level.
+    
+    Args:
+        file_paths: List of markdown file paths to combine
+        title: The document title (H1)
+        add_toc: Whether to add a table of contents
+    
+    Returns:
+        Combined markdown document
+    """
+    parts = [f"# {title}\n"]
+    
+    anchors_seen = {}
+    toc_entries = []
+    sections = []
+    
+    for path in file_paths:
+        if not os.path.exists(path):
+            continue
+        try:
+            content = open(path, encoding='utf-8').read()
+        except:
+            continue
+        
+        # Extract H1 from file or use filename
+        h1 = extract_first_h1(content)
+        if h1:
+            section_title = h1
+            # Remove H1 from body
+            content = re.sub(r"^# .+\n", "", content, count=1, flags=re.MULTILINE)
+        else:
+            section_title = Path(path).stem
+        
+        # Demote headings in this file
+        body = demote_headings(content)
+        
+        # Generate anchor
+        anchor = slugify_anchor(section_title)
+        if anchor in anchors_seen:
+            anchors_seen[anchor] += 1
+            anchor = f"{anchor}_{anchors_seen[anchor]}"
+        else:
+            anchors_seen[anchor] = 1
+        
+        toc_entries.append((section_title, anchor))
+        sections.append((section_title, body))
+    
+    # Build TOC
+    if add_toc and toc_entries:
+        parts.append("\n## Оглавление\n")
+        for title, anchor in toc_entries:
+            parts.append(f"- [{title}](#{anchor})")
+    
+    # Build sections
+    for section_title, body in sections:
+        anchor = slugify_anchor(section_title)
+        parts.append(f"\n## {section_title}\n")
+        parts.append(body)
+    
+    return "\n".join(parts)

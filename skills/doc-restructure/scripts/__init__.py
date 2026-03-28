@@ -20,6 +20,11 @@ from .markdown_sections import (
     apply_anchor_map,
     find_orphaned_refs,
     make_slug,
+    demote_headings,
+    promote_headings,
+    extract_first_h1,
+    slugify_anchor,
+    build_combined_document,
 )
 
 __all__ = [
@@ -42,4 +47,9 @@ __all__ = [
     "apply_anchor_map",
     "find_orphaned_refs",
     "make_slug",
+    "demote_headings",
+    "promote_headings",
+    "extract_first_h1",
+    "slugify_anchor",
+    "build_combined_document",
 ]

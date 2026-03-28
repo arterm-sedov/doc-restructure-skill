@@ -177,6 +177,34 @@ Find broken cross-references (links to non-existent anchors).
 
 Create URL-safe slug from heading title (ASCII-only).
 
+### demote_headings(markdown, levels=1)
+
+Demote headings by one level outside fenced code blocks.
+
+**Example:** `## H2` → `### H3`
+
+### promote_headings(markdown, levels=1)
+
+Promote headings by one level outside fenced code blocks.
+
+**Example:** `### H3` → `## H2`
+
+### extract_first_h1(markdown)
+
+Extract the first H1 heading from markdown.
+
+**Returns:** H1 title without # prefix, or None
+
+### slugify_anchor(text)
+
+Create anchor-friendly slug (keeps Cyrillic).
+
+### build_combined_document(file_paths, title, add_toc=False)
+
+Combine multiple markdown files into one document.
+
+Each file becomes an H2 section, headings inside are demoted by one level.
+
 ## Usage Example
 
 ```python
